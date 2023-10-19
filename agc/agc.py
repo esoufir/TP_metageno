@@ -190,9 +190,7 @@ def main(): # pragma: no cover
     # Get arguments
     args = get_arguments()
     OTUS = abundance_greedy_clustering(args.amplicon_file, args.minseqlen, args.mincount)    
-    write_OTU(OTUS, "output_test.txt")    
-    # Votre programme ici
-
+    write_OTU(OTUS, args.output_file)    
 
 if __name__ == '__main__':
     main()
