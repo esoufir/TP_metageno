@@ -26,6 +26,8 @@ from typing import Iterator, Dict, List
 # https://github.com/briney/nwalign3
 # ftp://ftp.ncbi.nih.gov/blast/matrices/
 import nwalign3 as nw
+import numpy as np
+np.int=int
 
 __author__ = "Your Name"
 __copyright__ = "Universite Paris Diderot"
@@ -135,7 +137,7 @@ def get_identity(alignment_list: List[str]) -> float:
         
     return(identities/len(seq1)* 100)
 
-def abundance_greedy_clustering(amplicon_file: Path, minseqlen: int, mincount: int) -> List:
+def abundance_greedy_clustering(amplicon_file: Path, minseqlen: int, mincount: int,chunk_size=None, kmer_size=None) -> List:
     """Compute an abundance greedy clustering regarding sequence count and identity.
     Identify OTU sequences.
 
@@ -147,13 +149,19 @@ def abundance_greedy_clustering(amplicon_file: Path, minseqlen: int, mincount: i
     :return: (list) A list of all the [OTU (str), count (int)] .
     """
     threshold = 97.0
-
-    for seq1 in read_fasta(amplicon_file, minseqlen):
-        for seq2 in dereplication_fulllength(amplicon_file, minseqlen, mincount):
-            # Alignmenent : 
-            print(Path(__file__).parent / "MATCH")
-            align=nw.global_align(seq1, seq2, gap_open=-1, gap_extend=-1, matrix=str(Path(__file__).parent / "MATCH"))
-            print(align)
+    OTUS=[]
+    rep_full = list(dereplication_fulllength(amplicon_file, minseqlen, mincount))
+    OTUS.append([rep_full[0][0],rep_full[0][1]])
+    for i in range(len(rep_full)):
+        for j in range(i+1,len(rep_full)):
+            if rep_full[i][0]!=rep_full[j][0] and rep_full[i][1]>rep_full[j][1]:
+                # Alignmenent : 
+                align=nw.global_align(rep_full[i][0], rep_full[j][0], gap_open=-1, gap_extend=-1, matrix=str(Path(__file__).parent / "MATCH"))
+                identity = get_identity(align)
+                if identity < threshold:
+                    tmp = list(rep_full[j])
+                    OTUS.append(tmp)
+    return OTUS
 
 
 
@@ -163,7 +171,13 @@ def write_OTU(OTU_list: List, output_file: Path) -> None:
     :param OTU_list: (list) A list of OTU sequences
     :param output_file: (Path) Path to the output file
     """
-    pass
+    with open(output_file, "w") as f_out:
+        for i in range(len(OTU_list)):
+            otu, occ = OTU_list[i]
+            f_out.write(f">OTU_{i+1} occurrence:{occ}\n")
+            f_out.write(textwrap.fill(otu, width=80))
+            f_out.write("\n")
+
 
 
 #==============================================================
@@ -175,10 +189,9 @@ def main(): # pragma: no cover
     """
     # Get arguments
     args = get_arguments()
-    abundance_greedy_clustering(args.amplicon_file, args.minseqlen, args.mincount)    
-    
+    OTUS = abundance_greedy_clustering(args.amplicon_file, args.minseqlen, args.mincount)    
+    write_OTU(OTUS, "output_test.txt")    
     # Votre programme ici
-
 
 
 if __name__ == '__main__':
