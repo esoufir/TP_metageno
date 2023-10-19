@@ -148,19 +148,20 @@ def abundance_greedy_clustering(amplicon_file: Path, minseqlen: int, mincount: i
     :param kmer_size: (int) A fournir mais non utilise cette annee
     :return: (list) A list of all the [OTU (str), count (int)] .
     """
-    threshold = 97.0
     OTUS=[]
-    rep_full = list(dereplication_fulllength(amplicon_file, minseqlen, mincount))
-    OTUS.append([rep_full[0][0],rep_full[0][1]])
-    for i in range(len(rep_full)):
-        for j in range(i+1,len(rep_full)):
-            if rep_full[i][0]!=rep_full[j][0] and rep_full[i][1]>rep_full[j][1]:
+    rep_full = dereplication_fulllength(amplicon_file, minseqlen, mincount)
+    OTUS.append(next(rep_full))
+    for seq in rep_full:
+        to_append=True
+        for otu in OTUS:
                 # Alignmenent : 
-                align=nw.global_align(rep_full[i][0], rep_full[j][0], gap_open=-1, gap_extend=-1, matrix=str(Path(__file__).parent / "MATCH"))
+                align=nw.global_align(seq[0], otu[0], gap_open=-1, gap_extend=-1, matrix=str(Path(__file__).parent / "MATCH"))
                 identity = get_identity(align)
-                if identity < threshold:
-                    tmp = list(rep_full[j])
-                    OTUS.append(tmp)
+                if identity>97.0:
+                    to_append=False
+                    break          
+        if to_append:
+            OTUS.append(seq)
     return OTUS
 
 
